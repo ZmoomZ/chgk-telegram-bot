@@ -18,7 +18,7 @@ const bot = new TelegramBot(TELEGRAM_TOKEN);
 const userStates = {};
 
 // Инициализация Google Sheets
-async function getSheet(sheetName) {
+async function getDoc() {
   const doc = new GoogleSpreadsheet(SHEET_ID);
   
   await doc.useServiceAccountAuth({
@@ -27,10 +27,9 @@ async function getSheet(sheetName) {
   });
   
   await doc.loadInfo();
-  const sheet = doc.sheetsByTitle[sheetName];
-  await sheet.loadHeaderRow();
-  return sheet;
+  return doc;
 }
+
 // Обработчик webhook
 app.post('/webhook', async (req, res) => {
   try {
@@ -94,13 +93,14 @@ bot.onText(/\/register/, async (msg) => {
   
   // Проверяем, не зарегистрирован ли уже
   try {
-    const sheet = await getSheet('teams');
+    const doc = await getDoc();
+    const sheet = doc.sheetsByTitle['teams'];
     const rows = await sheet.getRows();
-    const existingTeam = rows.find(row => row.get('chatId') == chatId);
+    const existingTeam = rows.find(row => row.chatId == chatId);
     
     if (existingTeam) {
       await bot.sendMessage(chatId, 
-        `⚠️ Вы уже зарегистрировали команду: <b>${existingTeam.get('teamName')}</b>\n\nДля изменения обратитесь к организаторам.`,
+        `⚠️ Вы уже зарегистрировали команду: <b>${existingTeam.teamName}</b>\n\nДля изменения обратитесь к организаторам.`,
         { parse_mode: 'HTML' }
       );
       return;
@@ -132,20 +132,21 @@ bot.onText(/\/answer/, async (msg) => {
   
   // Проверяем, есть ли команда
   try {
-    const sheet = await getSheet('teams');
+    const doc = await getDoc();
+    const sheet = doc.sheetsByTitle['teams'];
     const rows = await sheet.getRows();
-    const team = rows.find(row => row.get('chatId') == chatId);
+    const team = rows.find(row => row.chatId == chatId);
     
     if (!team) {
       await bot.sendMessage(chatId, '⚠️ Сначала зарегистрируйте команду с помощью /register');
       return;
     }
     
-    userStates[userId] = { action: 'answer', teamName: team.get('teamName') };
+    userStates[userId] = { action: 'answer', teamName: team.teamName };
     
     const message = `✍️ <b>Отправка ответа</b>
 
-Ваша команда: <b>${team.get('teamName')}</b>
+Ваша команда: <b>${team.teamName}</b>
 
 Отправьте ответ в формате:
 <code>Номер вопроса | Ваш ответ</code>
@@ -168,9 +169,10 @@ bot.onText(/\/myteam/, async (msg) => {
   const chatId = msg.chat.id;
   
   try {
-    const sheet = await getSheet('teams');
+    const doc = await getDoc();
+    const sheet = doc.sheetsByTitle['teams'];
     const rows = await sheet.getRows();
-    const team = rows.find(row => row.get('chatId') == chatId);
+    const team = rows.find(row => row.chatId == chatId);
     
     if (!team) {
       await bot.sendMessage(chatId, '⚠️ Вы еще не зарегистрировали команду. Используйте /register');
@@ -179,9 +181,9 @@ bot.onText(/\/myteam/, async (msg) => {
     
     const message = `👥 <b>Информация о вашей команде:</b>
 
-📌 Название: <b>${team.get('teamName')}</b>
-👤 Участники: ${team.get('people')}
-📅 Дата регистрации: ${new Date(team.get('dateReg')).toLocaleString('ru-RU')}`;
+📌 Название: <b>${team.teamName}</b>
+👤 Участники: ${team.people}
+📅 Дата регистрации: ${new Date(team.dateReg).toLocaleString('ru-RU')}`;
 
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
     
@@ -204,7 +206,6 @@ bot.on('message', async (msg) => {
   const state = userStates[userId];
   
   if (!state) {
-    await bot.sendMessage(chatId, '❓ Используйте /start для просмотра доступных команд');
     return;
   }
   
@@ -230,12 +231,14 @@ bot.on('message', async (msg) => {
     }
     
     try {
-      const sheet = await getSheet('teams');
+      const doc = await getDoc();
+      const sheet = doc.sheetsByTitle['teams'];
+      
       await sheet.addRow({
         teamName: teamName,
         people: members,
         dateReg: new Date().toISOString(),
-        chatId: chatId
+        chatId: chatId.toString()
       });
       
       delete userStates[userId];
@@ -283,7 +286,9 @@ bot.on('message', async (msg) => {
     }
     
     try {
-      const sheet = await getSheet('answers');
+      const doc = await getDoc();
+      const sheet = doc.sheetsByTitle['answers'];
+      
       await sheet.addRow({
         teamName: state.teamName,
         questionNumber: questionNum,
