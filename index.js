@@ -243,9 +243,9 @@ if (state.action === 'register') {
     await bot.sendMessage(chatId, '❌ Ошибка регистрации');
     delete userStates[userId];
   }
-}
+};
   
-  // Ответ
+// Ответ
 if (state.action === 'answer_waiting') {
   console.log('Processing answer...');
   if (!text.includes('|')) {
@@ -308,7 +308,7 @@ if (state.action === 'answer_waiting') {
     await bot.sendMessage(chatId, '❌ Ошибка отправки');
     delete userStates[userId];
   }
-}
+};
 
 // Health check
 app.get('/', (req, res) => {
