@@ -27,9 +27,10 @@ async function getSheet(sheetName) {
   });
   
   await doc.loadInfo();
-  return doc.sheetsByTitle[sheetName];
+  const sheet = doc.sheetsByTitle[sheetName];
+  await sheet.loadHeaderRow();
+  return sheet;
 }
-
 // Обработчик webhook
 app.post('/webhook', async (req, res) => {
   try {
