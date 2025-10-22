@@ -48,11 +48,26 @@ async function appendRow(sheetName, values) {
 }
 
 async function getRows(sheetName) {
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: SHEET_ID,
-    range: `${sheetName}!A:Z`,
-  });
-  return response.data.values || [];
+  try {
+    console.log(`Getting rows from sheet: ${sheetName}`);
+    console.log(`Spreadsheet ID: ${SHEET_ID}`);
+    
+    const response = await Promise.race([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: SHEET_ID,
+        range: `${sheetName}!A:Z`,
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout after 5 seconds')), 5000)
+      )
+    ]);
+    
+    console.log('Response received:', response.data.values?.length || 0, 'rows');
+    return response.data.values || [];
+  } catch (error) {
+    console.error('Error in getRows:', error.message);
+    throw error;
+  }
 }
 
 // Тестовый endpoint для проверки Google Sheets
@@ -126,19 +141,19 @@ bot.onText(/\/help/, async (msg) => {
 
 // Команда /register
 bot.onText(/\/register/, async (msg) => {
-  console.log('!!! REGISTER HANDLER CALLED !!!', JSON.stringify(msg));
-  console.log('Register command received from:', msg.chat.id);
+  console.log('!!! REGISTER HANDLER CALLED !!!');
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   
   try {
     console.log('Fetching teams sheet...');
     const rows = await getRows('teams');
-    console.log('Teams rows:', rows.length);
-    const existingTeam = rows.find(row => row[3] == chatId);
+    console.log('Got rows:', rows.length);
+    
+    const existingTeam = rows.slice(1).find(row => row[3] == chatId); // slice(1) чтобы пропустить заголовки
     
     if (existingTeam) {
-      console.log('Team already exists');
+      console.log('Team exists');
       await bot.sendMessage(chatId, 
         `⚠️ Вы уже зарегистрировали команду: <b>${existingTeam[0]}</b>`,
         { parse_mode: 'HTML' }
@@ -146,24 +161,18 @@ bot.onText(/\/register/, async (msg) => {
       return;
     }
   } catch (error) {
-    console.error('Error checking team:', error.message);
+    console.error('Error in register:', error.message);
+    // Продолжаем даже если ошибка
   }
   
-  console.log('Setting user state for:', userId);
+  console.log('Setting state and sending message...');
   userStates[userId] = { action: 'register' };
   
-  const message = `📝 <b>Регистрация команды</b>
-
-Отправьте данные в формате:
-<code>Название | Участник1, Участник2</code>
-
-<b>Пример:</b>
-<code>Знатоки | Иван, Петр, Мария</code>`;
-
-  console.log('Sending message to:', chatId);
-  await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-  console.log('Message sent successfully');
+  await bot.sendMessage(chatId, `📝 <b>Регистрация</b>\n\nФормат: <code>Название | Участники</code>`, { parse_mode: 'HTML' });
+  console.log('Done!');
 });
+
+
 // Команда /answer
 bot.onText(/\/answer/, async (msg) => {
   const chatId = msg.chat.id;
