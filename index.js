@@ -5,6 +5,15 @@ const { google } = require('googleapis');
 const app = express();
 app.use(express.json());
 
+// Логирование всех входящих запросов
+app.use((req, res, next) => {
+  console.log('Incoming request:', req.method, req.path);
+  if (req.body) {
+    console.log('Body:', JSON.stringify(req.body));
+  }
+  next();
+});
+
 // Конфигурация
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const SHEET_ID = process.env.SHEET_ID;
@@ -117,6 +126,7 @@ bot.onText(/\/help/, async (msg) => {
 
 // Команда /register
 bot.onText(/\/register/, async (msg) => {
+  console.log('!!! REGISTER HANDLER CALLED !!!', JSON.stringify(msg));
   console.log('Register command received from:', msg.chat.id);
   const chatId = msg.chat.id;
   const userId = msg.from.id;
