@@ -1,3 +1,4 @@
+require('dotenv').config();  // ← ЭТО ДОЛЖНО БЫТЬ ПЕРВОЙ СТРОКОЙ!
 const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const { google } = require('googleapis');
@@ -15,7 +16,7 @@ app.use((req, res, next) => {
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const SHEET_ID = process.env.SHEET_ID;
 const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
+const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY ? process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n') : '';
 
 // Инициализация бота
 const bot = new TelegramBot(TELEGRAM_TOKEN);
