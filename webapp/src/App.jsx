@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { initMiniApp, useLaunchParams, useInitData } from '@telegram-apps/sdk-react';
 import './App.css';
 import Home from './components/Home';
 import Register from './components/Register';
@@ -10,16 +9,17 @@ import Answers from './components/Answers';
 function App() {
   const [page, setPage] = useState('home');
   const [teamName, setTeamName] = useState(null);
-  
+
   useEffect(() => {
-    // Инициализация Telegram Mini App
-    const miniApp = initMiniApp();
-    miniApp.ready();
-    miniApp.expand();
-    
-    // Устанавливаем цвет header bar
-    miniApp.setHeaderColor('#7C3AED');
-    
+    // Используем нативный Telegram WebApp API
+    if (window.Telegram?.WebApp) {
+      const tg = window.Telegram.WebApp;
+      tg.ready();
+      tg.expand();
+      tg.setHeaderColor('#7C3AED');
+      tg.setBackgroundColor('#667eea');
+    }
+
     // Проверяем, есть ли команда в localStorage
     const savedTeam = localStorage.getItem('teamName');
     if (savedTeam) {
@@ -28,7 +28,7 @@ function App() {
   }, []);
 
   const renderPage = () => {
-    switch(page) {
+    switch (page) {
       case 'register':
         return <Register setPage={setPage} setTeamName={setTeamName} />;
       case 'answer':
