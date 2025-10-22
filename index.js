@@ -5,12 +5,9 @@ const { google } = require('googleapis');
 const app = express();
 app.use(express.json());
 
-// Логирование всех входящих запросов
+// Логирование
 app.use((req, res, next) => {
-  console.log('Incoming request:', req.method, req.path);
-  if (req.body) {
-    console.log('Body:', JSON.stringify(req.body));
-  }
+  console.log('Request:', req.method, req.path);
   next();
 });
 
@@ -48,44 +45,12 @@ async function appendRow(sheetName, values) {
 }
 
 async function getRows(sheetName) {
-  try {
-    console.log(`Getting rows from sheet: ${sheetName}`);
-    console.log(`Spreadsheet ID: ${SHEET_ID}`);
-    
-    const response = await Promise.race([
-      sheets.spreadsheets.values.get({
-        spreadsheetId: SHEET_ID,
-        range: `${sheetName}!A:Z`,
-      }),
-      new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout after 5 seconds')), 5000)
-      )
-    ]);
-    
-    console.log('Response received:', response.data.values?.length || 0, 'rows');
-    return response.data.values || [];
-  } catch (error) {
-    console.error('Error in getRows:', error.message);
-    throw error;
-  }
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: SHEET_ID,
+    range: `${sheetName}!A:Z`,
+  });
+  return response.data.values || [];
 }
-
-// Тестовый endpoint для проверки Google Sheets
-app.get('/test-sheets', async (req, res) => {
-  try {
-    console.log('Testing Google Sheets connection...');
-    console.log('SHEET_ID:', SHEET_ID);
-    console.log('Email:', GOOGLE_SERVICE_ACCOUNT_EMAIL);
-    console.log('Private key length:', GOOGLE_PRIVATE_KEY.length);
-    
-    const rows = await getRows('teams');
-    console.log('Success! Rows:', rows.length);
-    res.json({ success: true, rows: rows.length, data: rows });
-  } catch (error) {
-    console.error('Error:', error);
-    res.json({ success: false, error: error.message, stack: error.stack });
-  }
-});
 
 // Webhook handler
 app.post('/webhook', async (req, res) => {
@@ -155,14 +120,8 @@ bot.onText(/\/register/, async (msg) => {
 <b>Пример:</b>
 <code>Знатоки | Иван, Петр, Мария</code>`;
 
-  try {
-    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-    console.log('Message sent successfully');
-  } catch (error) {
-    console.error('Error sending message:', error);
-  }
+  await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
 });
-
 
 // Команда /answer
 bot.onText(/\/answer/, async (msg) => {
@@ -180,12 +139,7 @@ bot.onText(/\/answer/, async (msg) => {
 <b>Пример:</b>
 <code>1 | Александр Пушкин</code>`;
 
-  try {
-    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-    console.log('Message sent successfully');
-  } catch (error) {
-    console.error('Error sending message:', error);
-  }
+  await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
 });
 
 // Команда /myteam
@@ -216,7 +170,7 @@ bot.onText(/\/myteam/, async (msg) => {
   }
 });
 
-// Обработка сообщений
+// Обработка текстовых сообщений
 bot.on('message', async (msg) => {
   if (msg.text && msg.text.startsWith('/')) {
     return;
@@ -271,46 +225,45 @@ bot.on('message', async (msg) => {
   }
   
   // Ответ
-if (state.action === 'answer_waiting') {
-  if (!text.includes('|')) {
-    await bot.sendMessage(chatId, '⚠️ Формат: <code>Номер | Ответ</code>', { parse_mode: 'HTML' });
-    return;
-  }
-  
-  const parts = text.split('|');
-  if (parts.length !== 2) {
-    await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
-    return;
-  }
-  
-  const questionNum = parts[0].trim();
-  const answer = parts[1].trim();
-  
-  if (!questionNum || !answer) {
-    await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
-    return;
-  }
-  
-  if (isNaN(parseInt(questionNum))) {
-    await bot.sendMessage(chatId, '⚠️ Номер вопроса должен быть числом!');
-    return;
-  }
-  
-  try {
-    // Получаем команду по chatId
-    const rows = await getRows('teams');
-    const team = rows.slice(1).find(row => row[3] == chatId);
-    
-    if (!team) {
-      await bot.sendMessage(chatId, '⚠️ Команда не найдена. Используйте /register');
-      delete userStates[userId];
+  if (state.action === 'answer_waiting') {
+    if (!text.includes('|')) {
+      await bot.sendMessage(chatId, '⚠️ Формат: <code>Номер | Ответ</code>', { parse_mode: 'HTML' });
       return;
     }
     
-    await appendRow('answers', [team[0], questionNum, answer, new Date().toISOString()]);
-    delete userStates[userId];
+    const parts = text.split('|');
+    if (parts.length !== 2) {
+      await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
+      return;
+    }
     
-    const message = `✅ <b>Ответ принят!</b>
+    const questionNum = parts[0].trim();
+    const answer = parts[1].trim();
+    
+    if (!questionNum || !answer) {
+      await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
+      return;
+    }
+    
+    if (isNaN(parseInt(questionNum))) {
+      await bot.sendMessage(chatId, '⚠️ Номер вопроса должен быть числом!');
+      return;
+    }
+    
+    try {
+      const rows = await getRows('teams');
+      const team = rows.slice(1).find(row => row[3] == chatId);
+      
+      if (!team) {
+        await bot.sendMessage(chatId, '⚠️ Команда не найдена. Используйте /register');
+        delete userStates[userId];
+        return;
+      }
+      
+      await appendRow('answers', [team[0], questionNum, answer, new Date().toISOString()]);
+      delete userStates[userId];
+      
+      const message = `✅ <b>Ответ принят!</b>
 
 📌 <b>${team[0]}</b>
 🔢 Вопрос ${questionNum}
@@ -318,14 +271,15 @@ if (state.action === 'answer_waiting') {
 
 Следующий ответ: /answer`;
 
-    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-    
-  } catch (error) {
-    console.error('Error saving answer:', error);
-    await bot.sendMessage(chatId, '❌ Ошибка отправки');
-    delete userStates[userId];
+      await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+      
+    } catch (error) {
+      console.error('Error saving answer:', error);
+      await bot.sendMessage(chatId, '❌ Ошибка отправки');
+      delete userStates[userId];
+    }
   }
-}
+});
 
 // Health check
 app.get('/', (req, res) => {
