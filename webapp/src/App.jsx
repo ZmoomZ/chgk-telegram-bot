@@ -1,35 +1,52 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react';
+import { initMiniApp, useLaunchParams, useInitData } from '@telegram-apps/sdk-react';
+import './App.css';
+import Home from './components/Home';
+import Register from './components/Register';
+import Answer from './components/Answer';
+import MyTeam from './components/MyTeam';
+import Answers from './components/Answers';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [page, setPage] = useState('home');
+  const [teamName, setTeamName] = useState(null);
+  
+  useEffect(() => {
+    // Инициализация Telegram Mini App
+    const miniApp = initMiniApp();
+    miniApp.ready();
+    miniApp.expand();
+    
+    // Устанавливаем цвет header bar
+    miniApp.setHeaderColor('#7C3AED');
+    
+    // Проверяем, есть ли команда в localStorage
+    const savedTeam = localStorage.getItem('teamName');
+    if (savedTeam) {
+      setTeamName(savedTeam);
+    }
+  }, []);
+
+  const renderPage = () => {
+    switch(page) {
+      case 'register':
+        return <Register setPage={setPage} setTeamName={setTeamName} />;
+      case 'answer':
+        return <Answer setPage={setPage} teamName={teamName} />;
+      case 'myteam':
+        return <MyTeam setPage={setPage} teamName={teamName} />;
+      case 'answers':
+        return <Answers setPage={setPage} teamName={teamName} />;
+      default:
+        return <Home setPage={setPage} teamName={teamName} />;
+    }
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="app">
+      {renderPage()}
+    </div>
+  );
 }
 
-export default App
+export default App;
