@@ -100,14 +100,18 @@ bot.onText(/\/help/, async (msg) => {
 
 // Команда /register
 bot.onText(/\/register/, async (msg) => {
+  console.log('Register command received from:', msg.chat.id);
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   
   try {
+    console.log('Fetching teams sheet...');
     const rows = await getRows('teams');
+    console.log('Teams rows:', rows.length);
     const existingTeam = rows.find(row => row[3] == chatId);
     
     if (existingTeam) {
+      console.log('Team already exists');
       await bot.sendMessage(chatId, 
         `⚠️ Вы уже зарегистрировали команду: <b>${existingTeam[0]}</b>`,
         { parse_mode: 'HTML' }
@@ -115,9 +119,10 @@ bot.onText(/\/register/, async (msg) => {
       return;
     }
   } catch (error) {
-    console.error('Error checking team:', error);
+    console.error('Error checking team:', error.message);
   }
   
+  console.log('Setting user state for:', userId);
   userStates[userId] = { action: 'register' };
   
   const message = `📝 <b>Регистрация команды</b>
@@ -128,9 +133,10 @@ bot.onText(/\/register/, async (msg) => {
 <b>Пример:</b>
 <code>Знатоки | Иван, Петр, Мария</code>`;
 
+  console.log('Sending message to:', chatId);
   await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+  console.log('Message sent successfully');
 });
-
 // Команда /answer
 bot.onText(/\/answer/, async (msg) => {
   const chatId = msg.chat.id;
