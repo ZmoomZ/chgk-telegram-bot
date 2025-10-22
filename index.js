@@ -141,77 +141,61 @@ bot.onText(/\/help/, async (msg) => {
 
 // Команда /register
 bot.onText(/\/register/, async (msg) => {
-  console.log('!!! REGISTER HANDLER CALLED !!!');
+  console.log('Register command received');
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   
-  try {
-    console.log('Fetching teams sheet...');
-    const rows = await getRows('teams');
-    console.log('Got rows:', rows.length);
-    
-    const existingTeam = rows.slice(1).find(row => row[3] == chatId); // slice(1) чтобы пропустить заголовки
-    
-    if (existingTeam) {
-      console.log('Team exists');
-      await bot.sendMessage(chatId, 
-        `⚠️ Вы уже зарегистрировали команду: <b>${existingTeam[0]}</b>`,
-        { parse_mode: 'HTML' }
-      );
-      return;
-    }
-  } catch (error) {
-    console.error('Error in register:', error.message);
-    // Продолжаем даже если ошибка
-  }
-  
-  console.log('Setting state and sending message...');
   userStates[userId] = { action: 'register' };
   
-  await bot.sendMessage(chatId, `📝 <b>Регистрация</b>\n\nФормат: <code>Название | Участники</code>`, { parse_mode: 'HTML' });
-  console.log('Done!');
+  const message = `📝 <b>Регистрация команды</b>
+
+Отправьте данные в формате:
+<code>Название | Участник1, Участник2</code>
+
+<b>Пример:</b>
+<code>Знатоки | Иван, Петр, Мария</code>`;
+
+  try {
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    console.log('Message sent successfully');
+  } catch (error) {
+    console.error('Error sending message:', error);
+  }
 });
 
 
 // Команда /answer
 bot.onText(/\/answer/, async (msg) => {
+  console.log('Answer command received');
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   
+  userStates[userId] = { action: 'answer_waiting' };
+  
+  const message = `✍️ <b>Отправка ответа</b>
+
+Отправьте ответ в формате:
+<code>Номер вопроса | Ваш ответ</code>
+
+<b>Пример:</b>
+<code>1 | Александр Пушкин</code>`;
+
   try {
-    const rows = await getRows('teams');
-    const team = rows.find(row => row[3] == chatId);
-    
-    if (!team) {
-      await bot.sendMessage(chatId, '⚠️ Сначала зарегистрируйтесь: /register');
-      return;
-    }
-    
-    userStates[userId] = { action: 'answer', teamName: team[0] };
-    
-    const message = `✍️ <b>Отправка ответа</b>
-
-Ваша команда: <b>${team[0]}</b>
-
-Формат: <code>Номер | Ответ</code>
-
-<b>Пример:</b> <code>1 | Пушкин</code>`;
-
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-    
+    console.log('Message sent successfully');
   } catch (error) {
-    console.error('Error getting team:', error);
-    await bot.sendMessage(chatId, '❌ Ошибка получения данных');
+    console.error('Error sending message:', error);
   }
 });
 
 // Команда /myteam
 bot.onText(/\/myteam/, async (msg) => {
+  console.log('MyTeam command received');
   const chatId = msg.chat.id;
   
   try {
     const rows = await getRows('teams');
-    const team = rows.find(row => row[3] == chatId);
+    const team = rows.slice(1).find(row => row[3] == chatId);
     
     if (!team) {
       await bot.sendMessage(chatId, '⚠️ Вы не зарегистрированы. Используйте /register');
@@ -228,7 +212,7 @@ bot.onText(/\/myteam/, async (msg) => {
     
   } catch (error) {
     console.error('Error:', error);
-    await bot.sendMessage(chatId, '❌ Ошибка');
+    await bot.sendMessage(chatId, '❌ Ошибка получения данных команды');
   }
 });
 
@@ -287,52 +271,61 @@ bot.on('message', async (msg) => {
   }
   
   // Ответ
-  if (state.action === 'answer') {
-    if (!text.includes('|')) {
-      await bot.sendMessage(chatId, '⚠️ Формат: <code>Номер | Ответ</code>', { parse_mode: 'HTML' });
-      return;
-    }
+if (state.action === 'answer_waiting') {
+  if (!text.includes('|')) {
+    await bot.sendMessage(chatId, '⚠️ Формат: <code>Номер | Ответ</code>', { parse_mode: 'HTML' });
+    return;
+  }
+  
+  const parts = text.split('|');
+  if (parts.length !== 2) {
+    await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
+    return;
+  }
+  
+  const questionNum = parts[0].trim();
+  const answer = parts[1].trim();
+  
+  if (!questionNum || !answer) {
+    await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
+    return;
+  }
+  
+  if (isNaN(parseInt(questionNum))) {
+    await bot.sendMessage(chatId, '⚠️ Номер вопроса должен быть числом!');
+    return;
+  }
+  
+  try {
+    // Получаем команду по chatId
+    const rows = await getRows('teams');
+    const team = rows.slice(1).find(row => row[3] == chatId);
     
-    const parts = text.split('|');
-    if (parts.length !== 2) {
-      await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
-      return;
-    }
-    
-    const questionNum = parts[0].trim();
-    const answer = parts[1].trim();
-    
-    if (!questionNum || !answer) {
-      await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
-      return;
-    }
-    
-    if (isNaN(parseInt(questionNum))) {
-      await bot.sendMessage(chatId, '⚠️ Номер вопроса должен быть числом!');
-      return;
-    }
-    
-    try {
-      await appendRow('answers', [state.teamName, questionNum, answer, new Date().toISOString()]);
+    if (!team) {
+      await bot.sendMessage(chatId, '⚠️ Команда не найдена. Используйте /register');
       delete userStates[userId];
-      
-      const message = `✅ <b>Ответ принят!</b>
+      return;
+    }
+    
+    await appendRow('answers', [team[0], questionNum, answer, new Date().toISOString()]);
+    delete userStates[userId];
+    
+    const message = `✅ <b>Ответ принят!</b>
 
-📌 <b>${state.teamName}</b>
+📌 <b>${team[0]}</b>
 🔢 Вопрос ${questionNum}
 ✍️ ${answer}
 
 Следующий ответ: /answer`;
 
-      await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-      
-    } catch (error) {
-      console.error('Error saving answer:', error);
-      await bot.sendMessage(chatId, '❌ Ошибка отправки');
-      delete userStates[userId];
-    }
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    
+  } catch (error) {
+    console.error('Error saving answer:', error);
+    await bot.sendMessage(chatId, '❌ Ошибка отправки');
+    delete userStates[userId];
   }
-});
+}
 
 // Health check
 app.get('/', (req, res) => {
