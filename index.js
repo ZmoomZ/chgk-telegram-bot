@@ -20,8 +20,9 @@ const GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n');
 // Инициализация бота
 const bot = new TelegramBot(TELEGRAM_TOKEN);
 
-// Хранилище состояний
+// Хранилище состояний и команд в памяти
 const userStates = {};
+const userTeams = {}; // Храним chatId -> teamName
 
 // Google Sheets Auth
 const auth = new google.auth.GoogleAuth({
@@ -110,6 +111,15 @@ bot.onText(/\/register/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   
+  // Проверяем, есть ли уже команда в памяти
+  if (userTeams[chatId]) {
+    await bot.sendMessage(chatId, 
+      `⚠️ Вы уже зарегистрировали команду: <b>${userTeams[chatId]}</b>\n\nДля изменения обратитесь к организаторам.`,
+      { parse_mode: 'HTML' }
+    );
+    return;
+  }
+  
   userStates[userId] = { action: 'register' };
   
   const message = `📝 <b>Регистрация команды</b>
@@ -129,9 +139,17 @@ bot.onText(/\/answer/, async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   
-  userStates[userId] = { action: 'answer_waiting' };
+  // Проверяем, есть ли команда в памяти
+  if (!userTeams[chatId]) {
+    await bot.sendMessage(chatId, '⚠️ Сначала зарегистрируйте команду с помощью /register');
+    return;
+  }
+  
+  userStates[userId] = { action: 'answer_waiting', teamName: userTeams[chatId] };
   
   const message = `✍️ <b>Отправка ответа</b>
+
+Ваша команда: <b>${userTeams[chatId]}</b>
 
 Отправьте ответ в формате:
 <code>Номер вопроса | Ваш ответ</code>
@@ -147,27 +165,19 @@ bot.onText(/\/myteam/, async (msg) => {
   console.log('MyTeam command received');
   const chatId = msg.chat.id;
   
-  try {
-    const rows = await getRows('teams');
-    const team = rows.slice(1).find(row => row[3] == chatId);
-    
-    if (!team) {
-      await bot.sendMessage(chatId, '⚠️ Вы не зарегистрированы. Используйте /register');
-      return;
-    }
-    
-    const message = `👥 <b>Ваша команда:</b>
-
-📌 <b>${team[0]}</b>
-👤 ${team[1]}
-📅 ${new Date(team[2]).toLocaleString('ru-RU')}`;
-
-    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
-    
-  } catch (error) {
-    console.error('Error:', error);
-    await bot.sendMessage(chatId, '❌ Ошибка получения данных команды');
+  // Проверяем в памяти
+  if (!userTeams[chatId]) {
+    await bot.sendMessage(chatId, '⚠️ Вы не зарегистрированы. Используйте /register');
+    return;
   }
+  
+  const message = `👥 <b>Ваша команда:</b>
+
+📌 <b>${userTeams[chatId]}</b>
+
+Для просмотра участников откройте Google таблицу.`;
+
+  await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
 });
 
 // Обработка текстовых сообщений
@@ -221,7 +231,10 @@ bot.on('message', async (msg) => {
     try {
       console.log('Saving to sheets...');
       
-      // Сразу отвечаем пользователю, не ждём записи
+      // Сохраняем в памяти
+      userTeams[chatId] = teamName;
+      
+      // Сразу отвечаем пользователю
       const message = `✅ <b>Команда зарегистрирована!</b>
 
 📌 <b>${teamName}</b>
@@ -233,7 +246,7 @@ bot.on('message', async (msg) => {
       console.log('Message sent!');
       delete userStates[userId];
       
-      // Записываем в фоне (без await)
+      // Записываем в фоне
       appendRow('teams', [teamName, members, new Date().toISOString(), chatId])
         .then(() => console.log('Saved to sheets'))
         .catch(err => console.error('Error saving:', err));
@@ -273,22 +286,21 @@ bot.on('message', async (msg) => {
     }
     
     try {
-      console.log('Getting team...');
-      const rows = await getRows('teams');
-      const team = rows.slice(1).find(row => row[3] == chatId);
+      console.log('Getting team from memory...');
+      const teamName = state.teamName;
       
-      if (!team) {
+      if (!teamName) {
         await bot.sendMessage(chatId, '⚠️ Команда не найдена. Используйте /register');
         delete userStates[userId];
         return;
       }
       
-      console.log('Team found:', team[0]);
+      console.log('Team found:', teamName);
       
       // Сразу отвечаем пользователю
       const message = `✅ <b>Ответ принят!</b>
 
-📌 <b>${team[0]}</b>
+📌 <b>${teamName}</b>
 🔢 Вопрос ${questionNum}
 ✍️ ${answer}
 
@@ -299,7 +311,7 @@ bot.on('message', async (msg) => {
       delete userStates[userId];
       
       // Записываем в фоне
-      appendRow('answers', [team[0], questionNum, answer, new Date().toISOString()])
+      appendRow('answers', [teamName, questionNum, answer, new Date().toISOString()])
         .then(() => console.log('Answer saved to sheets'))
         .catch(err => console.error('Error saving answer:', err));
         
