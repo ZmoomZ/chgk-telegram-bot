@@ -193,7 +193,8 @@ bot.on('message', async (msg) => {
   console.log('Processing state:', state.action);
   
   
-  if (state.action === 'register') {
+  // Регистрация
+if (state.action === 'register') {
   console.log('Processing registration...');
   if (!text.includes('|')) {
     await bot.sendMessage(chatId, '⚠️ Неверный формат! Используйте: <code>Название | Участники</code>', { parse_mode: 'HTML' });
@@ -219,10 +220,8 @@ bot.on('message', async (msg) => {
   
   try {
     console.log('Saving to sheets...');
-    await appendRow('teams', [teamName, members, new Date().toISOString(), chatId]);
-    console.log('Saved successfully!');
-    delete userStates[userId];
     
+    // Сразу отвечаем пользователю, не ждём записи
     const message = `✅ <b>Команда зарегистрирована!</b>
 
 📌 <b>${teamName}</b>
@@ -230,57 +229,64 @@ bot.on('message', async (msg) => {
 
 Отправляйте ответы: /answer`;
 
-    console.log('Sending confirmation message...');
     await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
     console.log('Message sent!');
+    delete userStates[userId];
     
+    // Записываем в фоне (без await)
+    appendRow('teams', [teamName, members, new Date().toISOString(), chatId])
+      .then(() => console.log('Saved to sheets'))
+      .catch(err => console.error('Error saving:', err));
+      
   } catch (error) {
-    console.error('Error saving team:', error);
+    console.error('Error:', error);
     await bot.sendMessage(chatId, '❌ Ошибка регистрации');
     delete userStates[userId];
   }
 }
   
   // Ответ
-  if (state.action === 'answer_waiting') {
-    if (!text.includes('|')) {
-      await bot.sendMessage(chatId, '⚠️ Формат: <code>Номер | Ответ</code>', { parse_mode: 'HTML' });
-      return;
-    }
+if (state.action === 'answer_waiting') {
+  console.log('Processing answer...');
+  if (!text.includes('|')) {
+    await bot.sendMessage(chatId, '⚠️ Формат: <code>Номер | Ответ</code>', { parse_mode: 'HTML' });
+    return;
+  }
+  
+  const parts = text.split('|');
+  if (parts.length !== 2) {
+    await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
+    return;
+  }
+  
+  const questionNum = parts[0].trim();
+  const answer = parts[1].trim();
+  
+  if (!questionNum || !answer) {
+    await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
+    return;
+  }
+  
+  if (isNaN(parseInt(questionNum))) {
+    await bot.sendMessage(chatId, '⚠️ Номер вопроса должен быть числом!');
+    return;
+  }
+  
+  try {
+    console.log('Getting team...');
+    const rows = await getRows('teams');
+    const team = rows.slice(1).find(row => row[3] == chatId);
     
-    const parts = text.split('|');
-    if (parts.length !== 2) {
-      await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
-      return;
-    }
-    
-    const questionNum = parts[0].trim();
-    const answer = parts[1].trim();
-    
-    if (!questionNum || !answer) {
-      await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
-      return;
-    }
-    
-    if (isNaN(parseInt(questionNum))) {
-      await bot.sendMessage(chatId, '⚠️ Номер вопроса должен быть числом!');
-      return;
-    }
-    
-    try {
-      const rows = await getRows('teams');
-      const team = rows.slice(1).find(row => row[3] == chatId);
-      
-      if (!team) {
-        await bot.sendMessage(chatId, '⚠️ Команда не найдена. Используйте /register');
-        delete userStates[userId];
-        return;
-      }
-      
-      await appendRow('answers', [team[0], questionNum, answer, new Date().toISOString()]);
+    if (!team) {
+      await bot.sendMessage(chatId, '⚠️ Команда не найдена. Используйте /register');
       delete userStates[userId];
-      
-      const message = `✅ <b>Ответ принят!</b>
+      return;
+    }
+    
+    console.log('Team found:', team[0]);
+    
+    // Сразу отвечаем пользователю
+    const message = `✅ <b>Ответ принят!</b>
 
 📌 <b>${team[0]}</b>
 🔢 Вопрос ${questionNum}
@@ -288,15 +294,21 @@ bot.on('message', async (msg) => {
 
 Следующий ответ: /answer`;
 
-      await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
+    console.log('Message sent!');
+    delete userStates[userId];
+    
+    // Записываем в фоне
+    appendRow('answers', [team[0], questionNum, answer, new Date().toISOString()])
+      .then(() => console.log('Answer saved to sheets'))
+      .catch(err => console.error('Error saving answer:', err));
       
-    } catch (error) {
-      console.error('Error saving answer:', error);
-      await bot.sendMessage(chatId, '❌ Ошибка отправки');
-      delete userStates[userId];
-    }
+  } catch (error) {
+    console.error('Error:', error);
+    await bot.sendMessage(chatId, '❌ Ошибка отправки');
+    delete userStates[userId];
   }
-});
+}
 
 // Health check
 app.get('/', (req, res) => {
