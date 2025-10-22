@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle, XCircle, Send } from 'lucide-react';
-import { useInitData } from '@telegram-apps/sdk-react';
+
 
 function Answer({ setPage, teamName }) {
   const [formData, setFormData] = useState({
@@ -11,9 +11,10 @@ function Answer({ setPage, teamName }) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const initData = useInitData();
+  
 
   const handleSubmit = async (e) => {
+    const chatId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || Date.now();
     e.preventDefault();
     
     if (!formData.questionNumber || !formData.answer) {
@@ -39,7 +40,7 @@ function Answer({ setPage, teamName }) {
           teamName: teamName,
           questionNumber: formData.questionNumber,
           answer: formData.answer,
-          chatId: initData?.user?.id || Date.now()
+          chatId: chatId
         })
       });
 

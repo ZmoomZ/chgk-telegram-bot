@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, ListChecks, FileText } from 'lucide-react';
-import { useInitData } from '@telegram-apps/sdk-react';
 
 function Answers({ setPage, teamName }) {
   const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const initData = useInitData();
 
   useEffect(() => {
     fetchAnswers();
@@ -14,7 +11,8 @@ function Answers({ setPage, teamName }) {
 
   const fetchAnswers = async () => {
     try {
-      const response = await fetch(`https://host.bimview.ru/api/answers?chatId=${initData?.user?.id || Date.now()}`);
+      const chatId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || Date.now();
+      const response = await fetch(`https://host.bimview.ru/api/answers?chatId=${chatId}`);
       const data = await response.json();
       
       if (data.success) {

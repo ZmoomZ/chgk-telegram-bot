@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { ArrowLeft, CheckCircle, XCircle, Users } from 'lucide-react';
-import { useInitData } from '@telegram-apps/sdk-react';
 
 function Register({ setPage, setTeamName }) {
   const [formData, setFormData] = useState({
@@ -10,8 +9,8 @@ function Register({ setPage, setTeamName }) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
-
-  const initData = useInitData();
+  const chatId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || Date.now();
+  const initData = window.Telegram?.WebApp?.initDataUnsafe;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,7 +32,7 @@ function Register({ setPage, setTeamName }) {
         body: JSON.stringify({
           teamName: formData.teamName,
           members: formData.members,
-          chatId: initData?.user?.id || Date.now()
+          chatId: chatId
         })
       });
 

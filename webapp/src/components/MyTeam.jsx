@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Users, Calendar } from 'lucide-react';
-import { useInitData } from '@telegram-apps/sdk-react';
 
 function MyTeam({ setPage, teamName }) {
   const [teamData, setTeamData] = useState(null);
   const [loading, setLoading] = useState(true);
-  
-  const initData = useInitData();
 
   useEffect(() => {
     fetchTeamData();
@@ -14,7 +11,8 @@ function MyTeam({ setPage, teamName }) {
 
   const fetchTeamData = async () => {
     try {
-      const response = await fetch(`https://host.bimview.ru/api/team?chatId=${initData?.user?.id || Date.now()}`);
+      const chatId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id || Date.now();
+      const response = await fetch(`https://host.bimview.ru/api/team?chatId=${chatId}`);
       const data = await response.json();
       
       if (data.success) {
