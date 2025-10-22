@@ -170,9 +170,11 @@ bot.onText(/\/myteam/, async (msg) => {
   }
 });
 
-// Обработка текстовых сообщений
 bot.on('message', async (msg) => {
+  console.log('Message received:', msg.text);
+  
   if (msg.text && msg.text.startsWith('/')) {
+    console.log('Command detected, skipping');
     return;
   }
   
@@ -180,8 +182,20 @@ bot.on('message', async (msg) => {
   const userId = msg.from.id;
   const text = msg.text;
   
+  console.log('User state:', userStates[userId]);
+  
   const state = userStates[userId];
-  if (!state) return;
+  if (!state) {
+    console.log('No state found for user');
+    return;
+  }
+  
+  console.log('Processing state:', state.action);
+  
+  // Регистрация
+  if (state.action === 'register') {
+    console.log('Processing registration...');
+    // ... остальной код регистрации без изменений
   
   // Регистрация
   if (state.action === 'register') {
