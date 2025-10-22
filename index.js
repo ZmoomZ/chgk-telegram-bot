@@ -192,13 +192,10 @@ bot.on('message', async (msg) => {
   
   console.log('Processing state:', state.action);
   
-  // Регистрация
-  if (state.action === 'register') {
-    console.log('Processing registration...');
-    // ... остальной код регистрации без изменений
   
   // Регистрация
   if (state.action === 'register') {
+    console.log('Processing registration...');
     if (!text.includes('|')) {
       await bot.sendMessage(chatId, '⚠️ Неверный формат! Используйте: <code>Название | Участники</code>', { parse_mode: 'HTML' });
       return;
