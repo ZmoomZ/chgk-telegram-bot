@@ -46,6 +46,23 @@ async function getRows(sheetName) {
   return response.data.values || [];
 }
 
+// Тестовый endpoint для проверки Google Sheets
+app.get('/test-sheets', async (req, res) => {
+  try {
+    console.log('Testing Google Sheets connection...');
+    console.log('SHEET_ID:', SHEET_ID);
+    console.log('Email:', GOOGLE_SERVICE_ACCOUNT_EMAIL);
+    console.log('Private key length:', GOOGLE_PRIVATE_KEY.length);
+    
+    const rows = await getRows('teams');
+    console.log('Success! Rows:', rows.length);
+    res.json({ success: true, rows: rows.length, data: rows });
+  } catch (error) {
+    console.error('Error:', error);
+    res.json({ success: false, error: error.message, stack: error.stack });
+  }
+});
+
 // Webhook handler
 app.post('/webhook', async (req, res) => {
   try {
