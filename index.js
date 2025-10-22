@@ -67,7 +67,7 @@ app.post('/webhook', async (req, res) => {
 // Команда /start
 bot.onText(/\/start/, async (msg) => {
   const chatId = msg.chat.id;
-  
+
   const message = `🎉 <b>Добро пожаловать на ЧГК Новый Год 2025!</b>
 
 📋 <b>Доступные команды:</b>
@@ -85,7 +85,7 @@ bot.onText(/\/start/, async (msg) => {
 // Команда /help
 bot.onText(/\/help/, async (msg) => {
   const chatId = msg.chat.id;
-  
+
   const message = `❓ <b>Инструкция:</b>
 
 <b>1. Регистрация:</b>
@@ -110,18 +110,18 @@ bot.onText(/\/register/, async (msg) => {
   console.log('Register command received');
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  
+
   // Проверяем, есть ли уже команда в памяти
   if (userTeams[chatId]) {
-    await bot.sendMessage(chatId, 
+    await bot.sendMessage(chatId,
       `⚠️ Вы уже зарегистрировали команду: <b>${userTeams[chatId]}</b>\n\nДля изменения обратитесь к организаторам.`,
       { parse_mode: 'HTML' }
     );
     return;
   }
-  
+
   userStates[userId] = { action: 'register' };
-  
+
   const message = `📝 <b>Регистрация команды</b>
 
 Отправьте данные в формате:
@@ -138,15 +138,15 @@ bot.onText(/\/answer/, async (msg) => {
   console.log('Answer command received');
   const chatId = msg.chat.id;
   const userId = msg.from.id;
-  
+
   // Проверяем, есть ли команда в памяти
   if (!userTeams[chatId]) {
     await bot.sendMessage(chatId, '⚠️ Сначала зарегистрируйте команду с помощью /register');
     return;
   }
-  
+
   userStates[userId] = { action: 'answer_waiting', teamName: userTeams[chatId] };
-  
+
   const message = `✍️ <b>Отправка ответа</b>
 
 Ваша команда: <b>${userTeams[chatId]}</b>
@@ -164,13 +164,13 @@ bot.onText(/\/answer/, async (msg) => {
 bot.onText(/\/myteam/, async (msg) => {
   console.log('MyTeam command received');
   const chatId = msg.chat.id;
-  
+
   // Проверяем в памяти
   if (!userTeams[chatId]) {
     await bot.sendMessage(chatId, '⚠️ Вы не зарегистрированы. Используйте /register');
     return;
   }
-  
+
   const message = `👥 <b>Ваша команда:</b>
 
 📌 <b>${userTeams[chatId]}</b>
@@ -183,26 +183,26 @@ bot.onText(/\/myteam/, async (msg) => {
 // Обработка текстовых сообщений
 bot.on('message', async (msg) => {
   console.log('Message received:', msg.text);
-  
+
   if (msg.text && msg.text.startsWith('/')) {
     console.log('Command detected, skipping');
     return;
   }
-  
+
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const text = msg.text;
-  
+
   console.log('User state:', userStates[userId]);
-  
+
   const state = userStates[userId];
   if (!state) {
     console.log('No state found for user');
     return;
   }
-  
+
   console.log('Processing state:', state.action);
-  
+
   // Регистрация
   if (state.action === 'register') {
     console.log('Processing registration...');
@@ -210,30 +210,30 @@ bot.on('message', async (msg) => {
       await bot.sendMessage(chatId, '⚠️ Неверный формат! Используйте: <code>Название | Участники</code>', { parse_mode: 'HTML' });
       return;
     }
-    
+
     const parts = text.split('|');
     if (parts.length !== 2) {
       await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
       return;
     }
-    
+
     const teamName = parts[0].trim();
     const members = parts[1].trim();
-    
+
     console.log('Team name:', teamName);
     console.log('Members:', members);
-    
+
     if (!teamName || !members) {
       await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
       return;
     }
-    
+
     try {
       console.log('Saving to sheets...');
-      
+
       // Сохраняем в памяти
       userTeams[chatId] = teamName;
-      
+
       // Сразу отвечаем пользователю
       const message = `✅ <b>Команда зарегистрирована!</b>
 
@@ -245,19 +245,19 @@ bot.on('message', async (msg) => {
       await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
       console.log('Message sent!');
       delete userStates[userId];
-      
+
       // Записываем в фоне
       appendRow('teams', [teamName, members, new Date().toISOString(), chatId])
         .then(() => console.log('Saved to sheets'))
         .catch(err => console.error('Error saving:', err));
-        
+
     } catch (error) {
       console.error('Error:', error);
       await bot.sendMessage(chatId, '❌ Ошибка регистрации');
       delete userStates[userId];
     }
   }
-  
+
   // Ответ
   if (state.action === 'answer_waiting') {
     console.log('Processing answer...');
@@ -265,38 +265,38 @@ bot.on('message', async (msg) => {
       await bot.sendMessage(chatId, '⚠️ Формат: <code>Номер | Ответ</code>', { parse_mode: 'HTML' });
       return;
     }
-    
+
     const parts = text.split('|');
     if (parts.length !== 2) {
       await bot.sendMessage(chatId, '⚠️ Должен быть один символ |');
       return;
     }
-    
+
     const questionNum = parts[0].trim();
     const answer = parts[1].trim();
-    
+
     if (!questionNum || !answer) {
       await bot.sendMessage(chatId, '⚠️ Заполните все поля!');
       return;
     }
-    
+
     if (isNaN(parseInt(questionNum))) {
       await bot.sendMessage(chatId, '⚠️ Номер вопроса должен быть числом!');
       return;
     }
-    
+
     try {
       console.log('Getting team from memory...');
       const teamName = state.teamName;
-      
+
       if (!teamName) {
         await bot.sendMessage(chatId, '⚠️ Команда не найдена. Используйте /register');
         delete userStates[userId];
         return;
       }
-      
+
       console.log('Team found:', teamName);
-      
+
       // Сразу отвечаем пользователю
       const message = `✅ <b>Ответ принят!</b>
 
@@ -309,17 +309,104 @@ bot.on('message', async (msg) => {
       await bot.sendMessage(chatId, message, { parse_mode: 'HTML' });
       console.log('Message sent!');
       delete userStates[userId];
-      
+
       // Записываем в фоне
       appendRow('answers', [teamName, questionNum, answer, new Date().toISOString()])
         .then(() => console.log('Answer saved to sheets'))
         .catch(err => console.error('Error saving answer:', err));
-        
+
     } catch (error) {
       console.error('Error:', error);
       await bot.sendMessage(chatId, '❌ Ошибка отправки');
       delete userStates[userId];
     }
+  }
+});
+
+// API endpoints для Mini App
+app.post('/api/register', async (req, res) => {
+  try {
+    const { teamName, members, chatId } = req.body;
+
+    if (!teamName || !members || !chatId) {
+      return res.json({ success: false, message: 'Заполните все поля' });
+    }
+
+    // Сохраняем в памяти
+    userTeams[chatId] = teamName;
+
+    // Записываем в Google Sheets в фоне
+    appendRow('teams', [teamName, members, new Date().toISOString(), chatId])
+      .catch(err => console.error('Error saving team:', err));
+
+    res.json({ success: true, message: 'Команда зарегистрирована' });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.json({ success: false, message: 'Ошибка регистрации' });
+  }
+});
+
+app.post('/api/answer', async (req, res) => {
+  try {
+    const { teamName, questionNumber, answer, chatId } = req.body;
+
+    if (!teamName || !questionNumber || !answer) {
+      return res.json({ success: false, message: 'Заполните все поля' });
+    }
+
+    // Записываем в Google Sheets в фоне
+    appendRow('answers', [teamName, questionNumber, answer, new Date().toISOString()])
+      .catch(err => console.error('Error saving answer:', err));
+
+    res.json({ success: true, message: 'Ответ отправлен' });
+  } catch (error) {
+    console.error('Answer error:', error);
+    res.json({ success: false, message: 'Ошибка отправки ответа' });
+  }
+});
+
+app.get('/api/team', async (req, res) => {
+  try {
+    const { chatId } = req.query;
+    const teamName = userTeams[chatId];
+
+    if (!teamName) {
+      return res.json({ success: false, message: 'Команда не найдена' });
+    }
+
+    // Здесь можно добавить получение данных из Google Sheets
+    res.json({
+      success: true,
+      team: {
+        name: teamName,
+        members: 'Загружается...',
+        answersCount: 0,
+        membersCount: 0
+      }
+    });
+  } catch (error) {
+    console.error('Team info error:', error);
+    res.json({ success: false, message: 'Ошибка получения данных' });
+  }
+});
+
+app.get('/api/answers', async (req, res) => {
+  try {
+    const { chatId } = req.query;
+    const teamName = userTeams[chatId];
+
+    if (!teamName) {
+      return res.json({ success: false, message: 'Команда не найдена' });
+    }
+
+    // Здесь можно добавить получение ответов из Google Sheets
+    res.json({
+      success: true,
+      answers: []
+    });
+  } catch (error) {
+    console.error('Answers error:', error);
+    res.json({ success: false, message: 'Ошибка получения ответов' });
   }
 });
 
